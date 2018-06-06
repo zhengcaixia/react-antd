@@ -1,0 +1,136 @@
+
+let pageIndex;
+let pageSize = 10;
+class MyCardList extends Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            cardList: [],
+            dataSource: new ListView.DataSource({
+                rowHasChanged: (row1, row2) => row1 !== row2,
+            }),
+            isLoading: true,
+            startFetch: true,
+            footerTitle: "",
+            pageIndex: 1,
+            datas: [],
+        }
+    }
+
+    genData = (data) => {
+        let dataBlob = this.state.datas;
+        if (data) {
+            for (let i = 0; i < data.length; i++) {
+                dataBlob.push(data[i]);
+            }
+        }
+        this.setState({
+            datas: dataBlob
+        })
+        return dataBlob;
+    };
+
+    componentDidMount() {
+        //默认加载第一页
+        pageIndex = 1;
+        //请求后台数据接口 分页查询列表数据
+        this.props.action.getMyCardList(pageIndex, pageSize);
+    }
+
+    componentWillReceiveProps(nextProps) {
+        let data = nextProps.order.cardList;
+        if (data !== this.props.order.cardList) {
+            if (!nextProps.order.loadingState) {
+                pageIndex++;
+                this.rData = this.genData(data);
+                if (this.rData.length < 1) {
+                    this.setState({
+                        startFetch: false,
+                        footerTitle: "暂无数据"
+                    });
+                } else if (this.rData.length === nextProps.order.cardLength) {
+                    this.setState({
+                        startFetch: false,
+                        footerTitle: "已加载全部"
+                    });
+                }
+                this.setState({
+                    dataSource: this.state.dataSource.cloneWithRows(this.rData),
+                    pageIndex: pageIndex,
+                });
+            }
+           
+        }
+
+    }
+    
+    //页面滚动到底部，分页加载数据
+    onEndReached = (event) => {
+        if (this.props.order.loadingState || !this.state.startFetch) {
+            return;
+        }
+        //请求后台数据接口 分页查询列表数据
+        this.props.action.getMyCardList(this.state.pageIndex, pageSize);
+    }
+   
+  
+    render() {
+        const separator = (sectionID, rowID) => (
+            <div key={`${sectionID}-${rowID}`}
+                 style={{
+          backgroundColor: '#F5F5F9',
+          height: 8,
+          borderTop: '1px solid #ECECED',
+          borderBottom: '1px solid #ECECED',
+        }}
+            />
+        );
+        const row = (rowData, sectionID, rowID) => {
+            return (
+                <WingBlank size="lg">
+                    <WhiteSpace size="lg"/>
+                    <Card> 
+                        <Card.Body>
+                            <p>运营商：{rowData.operator_type_name}</p>
+                            <p>套餐名：{rowData.package_name}</p>
+                        </Card.Body>
+                    </Card>
+                    <WhiteSpace size="lg"/>
+                </WingBlank>
+            );
+        };
+
+        return (
+            <div style={{}}>
+                <div style={{position:'relative',top:'47px',}}>
+                    <ListView ref="lv"
+                              dataSource={this.state.dataSource}
+                              renderFooter={() => (<div style={{ padding: 10, textAlign: 'center' }}>
+          {this.props.order.loadingState?<div style={{width:'100px', margin:'2px auto',}}><ActivityIndicator size="small" text="加载中..."/></div>:this.state.footerTitle}
+        </div>)}
+                              renderRow={row}
+                              renderSeparator={separator}
+                              className="am-list"
+                              pageSize={10}
+                              useBodyScroll
+                              scrollRenderAheadDistance={500}
+                              scrollEventThrottle={200}
+                              onEndReached={this.onEndReached}
+                              onEndReachedThreshold={10}
+                    />
+                </div>
+            </div>
+        );
+    }
+}
+
+//react-redux  实现state到props的映射
+const mapStateToProps = (state) => {
+    return {order: state.order, login: state.login};
+};
+const mapDispatchToProps = (dispatch) => {
+    return {
+        action: bindActionCreators(actions, dispatch)
+    };
+};
+export default connect(mapStateToProps, mapDispatchToProps)(MyCardList)
